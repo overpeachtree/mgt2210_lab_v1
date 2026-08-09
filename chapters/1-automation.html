@@ -1,1 +1,973 @@
+<!doctype html>
 
+<html lang="en">
+
+<head>
+
+<meta charset="utf-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Lab 1: From Manual Research to Automation</title>
+
+<link rel="stylesheet" href="../css/book.css">
+
+</head>
+
+<body>
+
+<main class="book-shell">
+
+<div class="book-meta">
+<strong>MGT 2210 Supplemental Labs: Information Systems and Digital Transformation</strong><br>
+Lab 1: Automation
+</div>
+
+
+<h1 id="lab-1-from-manual-research-to-automation">
+Lab 1: From Manual Research to Automation
+</h1>
+
+<h3 id="building-from-first-principles-automation-repositories-and-repeatable-workflows">
+Building from First Principles: Automation, Repositories, and Repeatable Workflows
+</h3>
+
+
+<p>
+Organizations frequently perform tasks that are individually simple but collectively expensive because the same steps must be repeated many times. Research provides a useful example. Imagine maintaining profiles of 100 influential people. For each person, a researcher might search for recent interviews, review the results, record useful links, and periodically repeat the process.
+</p>
+
+<p>
+None of these activities is especially difficult in isolation. The difficulty comes from repetition. If the same procedure must be performed for 100 people every week or every month, a task that initially seemed small becomes a recurring operational process.
+</p>
+
+<p>
+<strong>Automation</strong> addresses this problem by converting a repeated human procedure into a sequence of instructions that a computer can execute. Importantly, automation does not necessarily require artificial intelligence. A programmer specifies the procedure, the computer executes it, and the same procedure can then be applied repeatedly to different inputs.
+</p>
+
+<p>
+This lab develops a simple research automation project called <strong>infppl</strong>. The project stores information about influential people in Markdown files, uses Python to search for recent interviews and podcasts, and uses GitHub Actions to execute the process automatically.
+</p>
+
+
+<figure class="book-figure" id="figure-lab-1a">
+
+<p class="figure-title">
+Figure Lab 1a The Phase I Automated Research Architecture
+</p>
+
+<img
+src="../figures/figure-lab-1a.png"
+alt="Architecture showing Markdown people files flowing into a Python automation script, then web search, rule-based filtering, updated Markdown, and a Git commit"
+>
+
+<p class="source">Source: Author-created.</p>
+
+<details class="long-description">
+
+<summary>
+<span class="show-label">Show long description</span>
+<span class="hide-label">Hide long description</span>
+</summary>
+
+<div class="long-description-panel">
+
+<strong>Long description</strong>
+
+<p>
+The figure presents the architecture of the Phase I research automation. Research subjects are stored as Markdown files in a people directory. A Python script reads those files, identifies each person, performs a web search, applies rule-based filtering to the search results, and writes selected information back into a designated machine-controlled section of each Markdown file. GitHub Actions orchestrates the execution, and Git records the resulting changes as commits. The architecture separates content, program logic, workflow execution, and version history.
+</p>
+
+</div>
+
+</details>
+
+</figure>
+
+
+<h2 id="the-infppl-project">
+The infppl Project
+</h2>
+
+<p>
+The repository separates research content from the software used to maintain that content. A simplified structure is shown below:
+</p>
+
+<pre><code>infppl/
+│
+├── people/
+│   ├── 001-stephen-wolfram.md
+│   ├── 002-yuval-noah-harari.md
+│   └── 003-charles-henry-bennett.md
+│
+├── scripts/
+│   └── update_interviews.py
+│
+└── .github/
+    └── workflows/
+        └── update-people.yml
+</code></pre>
+
+<p>
+Each layer has a different responsibility. The Markdown files store the research content. The Python script contains the automation logic. The GitHub Actions workflow determines how that script is executed.
+</p>
+
+<div class="table-wrap">
+
+<table>
+
+<caption>Table Lab 1a Components of the Research Automation</caption>
+
+<thead>
+
+<tr>
+<th>Component</th>
+<th>Primary Responsibility</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+<td><strong>Markdown files</strong></td>
+<td>Store human-readable research content about each person.</td>
+</tr>
+
+<tr>
+<td><strong>Python script</strong></td>
+<td>Defines the procedure used to search, filter, rank, and update research content.</td>
+</tr>
+
+<tr>
+<td><strong>GitHub Actions</strong></td>
+<td>Orchestrates execution of the Python program.</td>
+</tr>
+
+<tr>
+<td><strong>Git</strong></td>
+<td>Records changes over time and provides an audit trail.</td>
+</tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+
+<h2 id="markdown-as-a-lightweight-knowledge-store">
+Markdown as a Lightweight Knowledge Store
+</h2>
+
+<p>
+The first design decision concerns how research content should be stored. A relational database could be used, but that would introduce unnecessary complexity for a small project. Markdown provides a useful alternative because it is plain text, human-readable, easy for programs to process, and rendered directly by GitHub.
+</p>
+
+<p>
+For example, a research profile can begin with a simple document:
+</p>
+
+<pre><code># Stephen Wolfram
+
+## Overview
+
+Stephen Wolfram is a computer scientist, mathematician,
+physicist, and entrepreneur.
+
+## Latest Interviews and Podcasts
+
+&lt;!-- AUTO-UPDATE-START --&gt;
+
+No automated updates yet.
+
+&lt;!-- AUTO-UPDATE-END --&gt;
+</code></pre>
+
+<p>
+This structure allows the same file to serve several roles simultaneously. It is a research note that a person can read, structured content that software can process, a version-controlled artifact that Git can track, and potential source content for a future webpage.
+</p>
+
+
+<h2 id="defining-a-human-machine-boundary">
+Defining a Human–Machine Boundary
+</h2>
+
+<p>
+Automation introduces an important control problem. A research file may contain interpretation, commentary, or manually curated content that should never be rewritten by software. The automation therefore requires a clearly defined boundary.
+</p>
+
+<p>
+The <code>AUTO-UPDATE-START</code> and <code>AUTO-UPDATE-END</code> markers define the region that the program is permitted to replace:
+</p>
+
+<pre><code>&lt;!-- AUTO-UPDATE-START --&gt;
+
+Machine-controlled content
+
+&lt;!-- AUTO-UPDATE-END --&gt;
+</code></pre>
+
+<p>
+Everything outside this region remains under human control. Everything inside the region may be refreshed by the program.
+</p>
+
+<p>
+Although this is a small technical implementation, it illustrates an important systems principle: <strong>automated processes should operate within explicitly defined boundaries</strong>. Later, when artificial-intelligence agents are introduced, this separation becomes even more important.
+</p>
+
+
+<h2 id="scaling-through-conventions">
+Scaling Through Conventions
+</h2>
+
+<p>
+One possible design would create a separate Python program for every person being researched. That approach would quickly become difficult to maintain. A more scalable design establishes a convention: every research subject is represented by a Markdown file stored inside the same directory.
+</p>
+
+<pre><code>people/
+├── 001-stephen-wolfram.md
+├── 002-yuval-noah-harari.md
+├── 003-charles-henry-bennett.md
+└── ...
+</code></pre>
+
+<p>
+Python can discover these files dynamically:
+</p>
+
+<pre><code>from pathlib import Path
+
+PEOPLE_DIR = Path("people")
+
+files = sorted(
+    PEOPLE_DIR.glob("*.md")
+)
+</code></pre>
+
+<p>
+The expression <code>glob("*.md")</code> retrieves every file in the directory whose filename ends with <code>.md</code>. The automation therefore does not need to know whether the directory contains three people, thirty people, or one hundred people.
+</p>
+
+<p>
+Adding another research subject becomes a change to the project’s <strong>data</strong>, rather than a change to its <strong>program logic</strong>. This distinction is one of the foundations of scalable system design.
+</p>
+
+
+<h2 id="deriving-the-person-from-the-document">
+Deriving the Person from the Document
+</h2>
+
+<p>
+Each Markdown file begins with a first-level heading identifying the research subject:
+</p>
+
+<pre><code># Yuval Noah Harari
+</code></pre>
+
+<p>
+The Python program can read the first heading and use it as the person's name:
+</p>
+
+<pre><code>def get_person_name(path):
+    text = path.read_text(encoding="utf-8")
+
+    for line in text.splitlines():
+        line = line.strip()
+
+        if line.startswith("# "):
+            return line[2:].strip()
+
+    return None
+</code></pre>
+
+<p>
+If the program reads <code># Yuval Noah Harari</code>, it extracts the string <code>Yuval Noah Harari</code>. The filename remains useful for human organization, while the document itself provides the identity used by the automation.
+</p>
+
+
+<h2 id="automating-web-search">
+Automating Web Search
+</h2>
+
+<p>
+Once the person has been identified, the program can construct a search query. For example:
+</p>
+
+<pre><code>"Stephen Wolfram" interview podcast
+</code></pre>
+
+<p>
+The same query pattern can be generated for every research subject:
+</p>
+
+<pre><code>query = f'"{name}" interview podcast'
+</code></pre>
+
+<p>
+A search service can then return candidate results containing a title, URL, and descriptive text. The automation has now moved from storing information to retrieving possible new information from an external system.
+</p>
+
+<p>
+At this stage, however, retrieval should not be confused with understanding. The program has found pages that may be relevant. It has not established that they are actually useful, current, accurate, or associated with the intended individual.
+</p>
+
+
+<h2 id="deterministic-filtering-and-ranking">
+Deterministic Filtering and Ranking
+</h2>
+
+<p>
+Phase I uses explicit rules to evaluate search results. For example, a programmer may decide that results containing words such as <em>interview</em>, <em>podcast</em>, <em>conversation</em>, <em>episode</em>, or <em>talk</em> are more likely to be useful.
+</p>
+
+<pre><code>preferred_words = [
+    "interview",
+    "podcast",
+    "conversation",
+    "episode",
+    "talk"
+]
+</code></pre>
+
+<p>
+Each result can then be assigned a score:
+</p>
+
+<pre><code>score = 0
+
+for word in preferred_words:
+    if word in combined_text:
+        score += 1
+</code></pre>
+
+<p>
+The script can also assign additional weight when the person's name appears directly in the title:
+</p>
+
+<pre><code>if name.lower() in title.lower():
+    score += 2
+</code></pre>
+
+<p>
+This is an example of <strong>deterministic decision logic</strong>. The program is not independently deciding what constitutes a good research source. The programmer has converted human preferences into explicit scoring rules.
+</p>
+
+
+<aside class="box example-box" aria-labelledby="example-title">
+
+<h2 class="box-title" id="example-title">Example</h2>
+
+<div class="box-body">
+
+<p>
+<strong>Scoring a search result.</strong> Suppose a search result is titled <em>Interview with Stephen Wolfram: Computation and Artificial Intelligence</em>. If the title contains the word <em>interview</em>, the result receives one point. If the person's full name appears in the title, it receives two additional points. If its description contains another preferred word such as <em>conversation</em>, it receives one more point. The result would therefore receive a relevance score of four.
+</p>
+
+<p>
+The important observation is that the program is not interpreting the interview in a human sense. It is counting predefined signals and applying the scoring procedure consistently.
+</p>
+
+</div>
+
+</aside>
+
+
+<h2 id="automatically-generating-markdown">
+Automatically Generating Markdown
+</h2>
+
+<p>
+After the highest-ranking candidates have been selected, Python can generate a replacement section in Markdown:
+</p>
+
+<pre><code>&lt;!-- AUTO-UPDATE-START --&gt;
+
+### Recent Interview / Podcast Candidates
+
+#### 1. Stephen Wolfram on AI and Computation
+
+A discussion of computation, mathematics,
+and artificial intelligence.
+
+[Open source](https://example.com)
+
+_Last checked: 2026-08-09_
+
+&lt;!-- AUTO-UPDATE-END --&gt;
+</code></pre>
+
+<p>
+The script locates the start and end markers, preserves everything before and after them, and replaces only the content inside the machine-controlled region.
+</p>
+
+<p>
+This creates a hybrid information artifact. Human researchers can write interpretation, biography, and commentary, while software maintains selected sections that are suitable for repeated updating.
+</p>
+
+
+<h2 id="github-actions-as-an-orchestration-layer">
+GitHub Actions as an Orchestration Layer
+</h2>
+
+<p>
+A Python script defines the automation procedure, but something still needs to execute it. GitHub Actions provides a workflow system in which an automated process is defined using a YAML file. GitHub describes a workflow as a configurable automated process composed of one or more jobs.<sup><a href="#fn-1">1</a></sup>
+</p>
+
+<p>
+A simplified workflow can be represented as:
+</p>
+
+<pre><code>name: Update People Research
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - checkout repository
+      - install dependencies
+      - run Python script
+      - commit changed files
+</code></pre>
+
+<p>
+The <code>workflow_dispatch</code> trigger allows the workflow to be launched manually from the GitHub Actions interface when the workflow file exists on the default branch.<sup><a href="#fn-2">2</a></sup>
+</p>
+
+<p>
+The workflow file therefore serves a different function from the Python program. Python describes <em>what the research procedure does</em>. GitHub Actions describes <em>how that procedure is executed</em>.
+</p>
+
+
+<h2 id="execution-on-a-runner">
+Execution on a Runner
+</h2>
+
+<p>
+When the workflow starts, its job runs in a computing environment called a <strong>runner</strong>. GitHub supports both GitHub-hosted and self-hosted runner environments; in this lab, an Ubuntu GitHub-hosted runner is used.<sup><a href="#fn-3">3</a></sup>
+</p>
+
+<p>
+Conceptually, the process is:
+</p>
+
+<pre><code>User runs workflow
+        ↓
+GitHub prepares runner
+        ↓
+Repository is checked out
+        ↓
+Python dependencies are installed
+        ↓
+Research script executes
+        ↓
+Markdown files change
+        ↓
+Git commit is created
+        ↓
+Changes are pushed to repository
+</code></pre>
+
+<p>
+The important implication is that the automation does not depend on the researcher's personal computer. The repository contains both the project content and the instructions required to process that content.
+</p>
+
+
+<h2 id="git-as-an-audit-trail">
+Git as an Audit Trail
+</h2>
+
+<p>
+Automation creates another management concern: when software changes information automatically, users need a way to determine what changed.
+</p>
+
+<p>
+Git provides this history through commits. Each automated research update can create a commit such as:
+</p>
+
+<pre><code>Update people research
+</code></pre>
+
+<p>
+The commit history allows a researcher to inspect earlier versions, compare revisions, identify when changes occurred, and reverse an update when necessary.
+</p>
+
+<p>
+The GitHub workflow can authenticate using the repository's temporary <code>GITHUB_TOKEN</code>. Permissions assigned to that token can be adjusted at the workflow level, including granting the <code>contents: write</code> permission needed for repository modifications.<sup><a href="#fn-4">4</a></sup>
+</p>
+
+<p>
+Version control therefore makes automated activity observable. Automation does not have to mean invisible or irreversible change.
+</p>
+
+
+<h2 id="scaling-from-one-person-to-many">
+Scaling from One Person to Many
+</h2>
+
+<p>
+The central architectural improvement in this project is the move from one script per person to one general procedure that operates on all people.
+</p>
+
+<p>
+The program can be summarized as:
+</p>
+
+<pre><code>Open people/
+      ↓
+Find every *.md file
+      ↓
+For each file:
+      ↓
+Read person's name
+      ↓
+Search the web
+      ↓
+Score results
+      ↓
+Update marked section
+      ↓
+Move to next file
+</code></pre>
+
+<p>
+The corresponding Python loop is conceptually simple:
+</p>
+
+<pre><code>for path in files:
+    update_person_file(path)
+</code></pre>
+
+<p>
+This is one of the defining characteristics of useful automation: the procedure is written once and then repeatedly applied to changing data.
+</p>
+
+
+<aside class="box example-box" aria-labelledby="scaling-example-title">
+
+<h2 class="box-title" id="scaling-example-title">Example</h2>
+
+<div class="box-body">
+
+<p>
+Suppose the repository initially contains profiles for Stephen Wolfram and Yuval Noah Harari. A third Markdown file is later added for another person. The Python program does not need to be modified. During the next execution, <code>glob("*.md")</code> discovers the new file, extracts the person's name, and runs the same research procedure.
+</p>
+
+<p>
+The system has therefore increased its scope through a change in data rather than a change in program logic.
+</p>
+
+</div>
+
+</aside>
+
+
+<h2 id="when-automation-follows-the-rules-but-fails">
+When Automation Follows the Rules but Fails
+</h2>
+
+<p>
+The limitations of deterministic automation become visible when a task depends on interpretation rather than repetition.
+</p>
+
+<p>
+Consider the name <strong>Charles Henry Bennett</strong>. A search engine may return results for more than one historical individual with the same or similar name. The automation may confirm that a result contains the exact string <code>Charles Henry Bennett</code>, yet that result may refer to a different person from the one represented by the research profile.
+</p>
+
+<p>
+From the program's perspective, the rule has been followed correctly. The name matched. Preferred keywords may also have been present. The result received a score.
+</p>
+
+<p>
+From the researcher's perspective, however, the answer is wrong.
+</p>
+
+<p>
+This reveals an important distinction:
+</p>
+
+<p>
+<strong>Correct execution is not the same as correct interpretation.</strong>
+</p>
+
+
+<h2 id="syntax-versus-semantics">
+Syntax Versus Semantics
+</h2>
+
+<p>
+The Phase I automation is effective at <strong>syntactic matching</strong>. It can determine whether certain strings, filenames, headings, and markers are present.
+</p>
+
+<p>
+The actual research problem may instead require <strong>semantic judgment</strong>. A researcher may need to determine whether two pages describe the same person, whether a source is genuinely an interview, whether the publication date is trustworthy, or whether two links refer to duplicate versions of the same appearance.
+</p>
+
+<div class="table-wrap">
+
+<table>
+
+<caption>Table Lab 1b Deterministic Tasks and Contextual Tasks</caption>
+
+<thead>
+
+<tr>
+<th>Task</th>
+<th>Nature of the Problem</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+<td>Find every <code>.md</code> file</td>
+<td>Deterministic</td>
+</tr>
+
+<tr>
+<td>Read the first H1 heading</td>
+<td>Deterministic</td>
+</tr>
+
+<tr>
+<td>Replace content between known markers</td>
+<td>Deterministic</td>
+</tr>
+
+<tr>
+<td>Determine whether two sources refer to the same person</td>
+<td>Contextual</td>
+</tr>
+
+<tr>
+<td>Determine whether a result is truly an interview</td>
+<td>Contextual</td>
+</tr>
+
+<tr>
+<td>Assess whether a source is credible</td>
+<td>Contextual</td>
+</tr>
+
+<tr>
+<td>Summarize the important ideas of an interview</td>
+<td>Contextual</td>
+</tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+
+<h2 id="the-limits-of-rule-based-automation">
+The Limits of Rule-Based Automation
+</h2>
+
+<p>
+One response to an ambiguous search result is simply to add more rules. For a particular person, the programmer could introduce occupation names, organizations, aliases, dates, and exclusion terms.
+</p>
+
+<pre><code>if "illustrator" in result:
+    reject()
+
+if "quantum" in result:
+    increase_score()
+
+if "IBM" in result:
+    increase_score()
+</code></pre>
+
+<p>
+For an isolated case, this may work well. As the number of research subjects increases, however, the number of exceptions may also grow. Person A may require one set of rules, Person B another set, and Person C yet another.
+</p>
+
+<p>
+At some point, maintaining increasingly specific rules may become more difficult than introducing a mechanism capable of interpreting context.
+</p>
+
+<p>
+This does not mean deterministic automation is inferior. On the contrary, it is often the preferred approach when the problem is stable, predictable, and expressible using clear rules. The limitation arises when the task itself contains ambiguity.
+</p>
+
+
+<h2 id="automation-is-not-intelligence">
+Automation Is Not Intelligence
+</h2>
+
+<p>
+The Phase I system can perform several activities that may appear intelligent from the outside. It discovers files, searches the web, evaluates results, updates documents, and creates commits.
+</p>
+
+<p>
+Nevertheless, the system has not been given a general reasoning capability. Its behavior remains constrained by predefined procedures.
+</p>
+
+<p>
+A useful distinction is:
+</p>
+
+<p>
+<strong>Automation handles repetition. Intelligence becomes more useful when the task requires interpretation under ambiguity.</strong>
+</p>
+
+<p>
+This distinction prevents a common conceptual error: describing every automated process as an artificial-intelligence agent.
+</p>
+
+
+<h2 id="from-automation-to-agentic-research">
+From Automation to Agentic Research
+</h2>
+
+<p>
+The Phase I system can be summarized as:
+</p>
+
+<pre><code>Trigger
+   ↓
+GitHub Actions
+   ↓
+Python
+   ↓
+Web Search
+   ↓
+Rule-Based Selection
+   ↓
+Markdown
+   ↓
+Git Commit
+</code></pre>
+
+<p>
+The defining characteristic is that the programmer specifies the decision procedure. The program knows which keywords to count, which filenames to inspect, which document region to replace, and when to create a commit.
+</p>
+
+<p>
+Phase II will alter this relationship. Instead of encoding every judgment as a deterministic rule, a language model can be introduced to evaluate contextual questions such as:
+</p>
+
+<ul>
+
+<li>Does this result refer to the intended person?</li>
+
+<li>Is this page an actual interview or merely an index page?</li>
+
+<li>Are two search results duplicates?</li>
+
+<li>What are the main ideas communicated in the source?</li>
+
+<li>Which evidence is most relevant to the research objective?</li>
+
+</ul>
+
+<p>
+The broader progression of the supplemental labs is therefore:
+</p>
+
+<div class="table-wrap">
+
+<table>
+
+<caption>Table Lab 1c Three Phases of Increasing System Capability</caption>
+
+<thead>
+
+<tr>
+<th>Phase</th>
+<th>Primary Problem</th>
+<th>Central Idea</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+<td><strong>Phase I: Automation</strong></td>
+<td>Repetition</td>
+<td>Follow a defined procedure repeatedly.</td>
+</tr>
+
+<tr>
+<td><strong>Phase II: Agentic Research</strong></td>
+<td>Ambiguity and contextual judgment</td>
+<td>Use bounded AI judgment to pursue a research goal.</td>
+</tr>
+
+<tr>
+<td><strong>Phase III: Agent Harness</strong></td>
+<td>Reliability, control, and repeated autonomous execution</td>
+<td>Provide tools, memory, permissions, validation, and safeguards around the agent.</td>
+</tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<p>
+Phase I therefore establishes the foundation. Before asking a system to exercise judgment, it is useful to understand what can already be accomplished through structured information, explicit rules, orchestration, and version control.
+</p>
+
+
+<h2 id="key-terms-and-definitions">
+Key Terms and Definitions
+</h2>
+
+<dl class="definition-list">
+
+<dt><strong>Automation</strong></dt>
+
+<dd>
+The use of software to execute a predefined process repeatedly with limited or no human intervention.
+</dd>
+
+
+<dt><strong>Repository</strong></dt>
+
+<dd>
+A version-controlled collection of project files, source code, documentation, and history.
+</dd>
+
+
+<dt><strong>Markdown</strong></dt>
+
+<dd>
+A lightweight plain-text markup format that can be read directly by humans and transformed into formatted documents or webpages.
+</dd>
+
+
+<dt><strong>Deterministic Logic</strong></dt>
+
+<dd>
+A decision process in which explicitly specified rules determine how a system responds to defined inputs.
+</dd>
+
+
+<dt><strong>Orchestration</strong></dt>
+
+<dd>
+The coordination of multiple technical steps so that they operate as one larger workflow.
+</dd>
+
+
+<dt><strong>GitHub Actions</strong></dt>
+
+<dd>
+GitHub's workflow automation system for executing jobs in response to configured events or manual triggers.<sup><a href="#fn-1">1</a></sup>
+</dd>
+
+
+<dt><strong>Runner</strong></dt>
+
+<dd>
+The computing environment that executes the jobs defined in a GitHub Actions workflow.<sup><a href="#fn-3">3</a></sup>
+</dd>
+
+
+<dt><strong>Version Control</strong></dt>
+
+<dd>
+A system that records changes to files over time so that revisions can be inspected, compared, restored, and audited.
+</dd>
+
+
+<dt><strong>Audit Trail</strong></dt>
+
+<dd>
+A chronological record that makes it possible to determine what changed, when it changed, and which process produced the change.
+</dd>
+
+
+<dt><strong>Syntactic Matching</strong></dt>
+
+<dd>
+Matching information using explicit strings, patterns, or structures without determining their broader contextual meaning.
+</dd>
+
+
+<dt><strong>Semantic Judgment</strong></dt>
+
+<dd>
+Evaluation based on meaning and context rather than only explicit textual or structural patterns.
+</dd>
+
+
+<dt><strong>Human–Machine Boundary</strong></dt>
+
+<dd>
+An explicitly designed separation between information or actions controlled by a human and information or actions controlled by an automated system.
+</dd>
+
+
+<dt><strong>Agentic Research</strong></dt>
+
+<dd>
+A research process in which an AI system is given a goal and exercises bounded judgment when selecting, interpreting, or acting on information rather than merely applying a fixed sequence of deterministic rules.
+</dd>
+
+</dl>
+
+
+<nav class="chapter-nav" aria-label="Chapter navigation">
+
+<a href="../index.html">Previous</a>
+
+<a href="2-agentic-research.html">Next</a>
+
+</nav>
+
+
+<h2 id="footnotes">
+Footnotes
+</h2>
+
+<ol class="references">
+
+<li id="fn-1">
+GitHub Docs, “Workflow syntax for GitHub Actions,”
+<a href="https://docs.github.com/actions/using-workflows/workflow-syntax-for-github-actions">
+https://docs.github.com/actions/using-workflows/workflow-syntax-for-github-actions
+</a>.
+</li>
+
+<li id="fn-2">
+GitHub Docs, “Manually running a workflow,”
+<a href="https://docs.github.com/actions/managing-workflow-runs/manually-running-a-workflow">
+https://docs.github.com/actions/managing-workflow-runs/manually-running-a-workflow
+</a>.
+</li>
+
+<li id="fn-3">
+GitHub Docs, “Contexts reference,” runner context documentation,
+<a href="https://docs.github.com/en/actions/reference/workflows-and-actions/contexts">
+https://docs.github.com/en/actions/reference/workflows-and-actions/contexts
+</a>.
+</li>
+
+<li id="fn-4">
+GitHub Docs, “Use GITHUB_TOKEN for authentication in workflows,”
+<a href="https://docs.github.com/actions/reference/authentication-in-a-workflow">
+https://docs.github.com/actions/reference/authentication-in-a-workflow
+</a>.
+</li>
+
+</ol>
+
+
+</main>
+
+</body>
+
+</html>
