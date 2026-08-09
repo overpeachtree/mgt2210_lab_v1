@@ -1,1 +1,897 @@
+<!doctype html>
 
+<html lang="en">
+
+<head>
+
+<meta charset="utf-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Lab 2: From Automation to Agentic Research</title>
+
+<link rel="stylesheet" href="../css/book.css">
+
+</head>
+
+<body>
+
+<main class="book-shell">
+
+<div class="book-meta">
+<strong>MGT 2210 Supplemental Labs: Information Systems and Digital Transformation</strong><br>
+Lab 2: Agentic Research
+</div>
+
+
+<h1 id="lab-2-from-automation-to-agentic-research">
+Lab 2: From Automation to Agentic Research
+</h1>
+
+<h3 id="using-language-models-for-semantic-judgment">
+Moving from Rule-Based Matching to Semantic Judgment
+</h3>
+
+
+<p>
+In Lab 1, we built a deterministic research automation system. The system could discover Markdown files, identify a person by name, search the web, rank candidate results using predefined rules, update a research file, and record the resulting change in Git.
+</p>
+
+<p>
+The automation worked well when the task could be expressed through explicit procedures. However, one research subject exposed an important limitation.
+</p>
+
+<p>
+The name <strong>Charles Henry Bennett</strong> refers to more than one notable individual. Our intended research subject was Charles H. Bennett, the physicist and information theorist associated with IBM Research and quantum information science. Yet the Phase I search also returned material concerning Charles Henry Bennett, a nineteenth-century British illustrator.
+</p>
+
+<p>
+The automation did not malfunction. It followed the rules exactly as written.
+</p>
+
+<p>
+The problem was that matching a name is not the same as identifying a person.
+</p>
+
+<p>
+This lab introduces a language model as a new system component. Instead of asking Python to make every decision using fixed keyword rules, we allow a large language model to evaluate contextual evidence and return a structured judgment.
+</p>
+
+
+<figure class="book-figure" id="figure-lab-2a">
+
+<p class="figure-title">
+Figure 2.1 From Deterministic Automation to Agentic Research
+</p>
+
+<img
+src="../figures/figure-lab-2a.png"
+alt="Architecture showing web search results flowing into an LLM semantic evaluation layer, followed by structured output validation and an updated Markdown research file."
+>
+
+<p class="source">Source: Author-created.</p>
+
+<details class="long-description">
+
+<summary>
+<span class="show-label">Show long description</span>
+<span class="hide-label">Hide long description</span>
+</summary>
+
+<div class="long-description-panel">
+
+<strong>Long description</strong>
+
+<p>
+The figure contrasts Phase I and Phase II. In Phase I, Python retrieves search results and applies explicit keyword rules before updating Markdown. In Phase II, web search still retrieves candidate sources, but those candidates are passed to a large language model together with an identity description and research objective. The language model evaluates the candidates semantically and produces structured decisions such as whether the result refers to the intended person, whether the source is useful, the model's confidence, and an explanation. Python then validates the structured result before updating the research file.
+</p>
+
+</div>
+
+</details>
+
+</figure>
+
+
+<h2 id="a-failure-that-reveals-a-design-problem">
+A Failure That Reveals a Design Problem
+</h2>
+
+<p>
+The Phase I workflow searched for a person's name together with terms such as <em>interview</em> and <em>podcast</em>. Search results were then scored according to predefined keywords.
+</p>
+
+<p>
+For a relatively distinctive name such as Stephen Wolfram, this approach can work reasonably well. For an ambiguous name, however, the weakness becomes clear.
+</p>
+
+<p>
+Consider two possible search results:
+</p>
+
+<div class="table-wrap">
+
+<table>
+
+<caption>Table 2.1 Two Search Results Sharing the Same Name</caption>
+
+<thead>
+
+<tr>
+<th>Search Result</th>
+<th>Actual Identity</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+<td>Charles H. Bennett discusses quantum information and IBM Research</td>
+<td>The intended physicist and information theorist</td>
+</tr>
+
+<tr>
+<td>Charles Henry Bennett sketches and Victorian illustrations</td>
+<td>A nineteenth-century illustrator</td>
+</tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<p>
+A string-matching system sees the same or similar name in both results. A human researcher immediately notices that the surrounding context describes two different people.
+</p>
+
+<p>
+The distinction requires more than syntax. It requires interpretation.
+</p>
+
+
+<h2 id="from-syntactic-matching-to-semantic-judgment">
+From Syntactic Matching to Semantic Judgment
+</h2>
+
+<p>
+Phase I relied primarily on <strong>syntactic signals</strong>. Examples include whether a particular string appeared in a title, whether a filename ended in <code>.md</code>, or whether a search result contained the word <em>podcast</em>.
+</p>
+
+<p>
+Phase II introduces <strong>semantic judgment</strong>. The system now considers contextual information such as occupation, employer, research field, collaborators, historical period, and intellectual contributions.
+</p>
+
+<p>
+For Charles H. Bennett, the intended identity can be described as:
+</p>
+
+<pre><code>Name: Charles H. Bennett
+
+Identity:
+Physicist and information theorist associated with IBM Research.
+
+Known for:
+- quantum information science
+- quantum cryptography
+- reversible computation
+- quantum teleportation
+- work with Gilles Brassard
+- BB84
+- the 2025 ACM A.M. Turing Award
+
+Do not confuse with:
+Charles Henry Bennett, the British Victorian illustrator
+who lived from 1828 to 1867.
+</code></pre>
+
+<p>
+This information is not simply converted into another collection of rigid <code>if</code> statements. Instead, it becomes contextual information supplied to a language model.
+</p>
+
+
+<h2 id="the-phase-ii-architecture">
+The Phase II Architecture
+</h2>
+
+<p>
+The architecture now contains two distinct computational roles.
+</p>
+
+<p>
+Python remains responsible for control. It performs the search, collects results, sends information to the language model, validates the returned structure, and determines what may be written to the research file.
+</p>
+
+<p>
+The language model is responsible for judgment. It evaluates whether each candidate source appears to refer to the intended person and whether that source is useful for the research objective.
+</p>
+
+<pre><code>Research subject
+      ↓
+Web search
+      ↓
+Candidate results
+      ↓
+Identity context + candidates
+      ↓
+Language model
+      ↓
+Structured judgment
+      ↓
+Python validation
+      ↓
+Markdown update
+</code></pre>
+
+<p>
+This separation is intentional.
+</p>
+
+<p>
+The language model is not given unrestricted permission to rewrite the repository. It proposes a structured evaluation. The deterministic program decides how that evaluation is used.
+</p>
+
+
+<h2 id="using-an-llm-as-a-judgment-layer">
+Using an LLM as a Judgment Layer
+</h2>
+
+<p>
+The Phase II prototype uses the Gemini API. A web search first produces a set of candidate results. Each candidate contains information such as:
+</p>
+
+<pre><code>{
+    "title": "...",
+    "url": "...",
+    "snippet": "..."
+}
+</code></pre>
+
+<p>
+The candidate results are then combined with a description of the intended identity and sent to the language model.
+</p>
+
+<p>
+The model is asked to answer several questions for every candidate:
+</p>
+
+<ol>
+
+<li>Does this result refer to the intended person?</li>
+
+<li>Is the result a useful research source?</li>
+
+<li>How confident is the model in the identity judgment?</li>
+
+<li>What evidence supports the decision?</li>
+
+</ol>
+
+<p>
+This is fundamentally different from the Phase I scoring system.
+</p>
+
+<p>
+Phase I asked:
+</p>
+
+<pre><code>Does the result contain the word "interview"?
+</code></pre>
+
+<p>
+Phase II asks:
+</p>
+
+<pre><code>Given the identity description and contextual evidence,
+does this source actually refer to the intended person?
+</code></pre>
+
+
+<aside class="box example-box" aria-labelledby="identity-example-title">
+
+<h2 class="box-title" id="identity-example-title">Example</h2>
+
+<div class="box-body">
+
+<p>
+Consider a search result describing sketches created by Charles Henry Bennett in the nineteenth century.
+</p>
+
+<p>
+A deterministic system might observe that the correct name appears and continue processing the result.
+</p>
+
+<p>
+The Phase II language model can instead consider the surrounding evidence:
+</p>
+
+<ul>
+<li>Victorian period</li>
+<li>illustration</li>
+<li>sketches</li>
+<li>nineteenth-century dates</li>
+</ul>
+
+<p>
+and compare that evidence with the intended identity:
+</p>
+
+<ul>
+<li>IBM Research</li>
+<li>physics</li>
+<li>quantum information</li>
+<li>Gilles Brassard</li>
+</ul>
+
+<p>
+The model can therefore conclude that the result refers to a different person even though the name matches.
+</p>
+
+</div>
+
+</aside>
+
+
+<h2 id="why-structured-output-matters">
+Why Structured Output Matters
+</h2>
+
+<p>
+A language model could simply return a paragraph explaining its conclusions. That would be readable by a person, but it would make the next programmatic step unnecessarily difficult.
+</p>
+
+<p>
+Instead, Phase II requests <strong>structured output</strong>.
+</p>
+
+<p>
+A simplified result might look like:
+</p>
+
+<pre><code>{
+  "candidate_number": 3,
+  "same_person": false,
+  "useful_source": false,
+  "confidence": 0.99,
+  "reason": "This result concerns the Victorian illustrator,
+             not the IBM quantum-information researcher."
+}
+</code></pre>
+
+<p>
+Another candidate might return:
+</p>
+
+<pre><code>{
+  "candidate_number": 5,
+  "same_person": true,
+  "useful_source": true,
+  "confidence": 0.98,
+  "reason": "The source discusses Bennett's work in quantum
+             information and his collaboration with Gilles Brassard."
+}
+</code></pre>
+
+<p>
+Structured output creates a bridge between probabilistic AI reasoning and deterministic software.
+</p>
+
+<p>
+The language model handles ambiguity. Python receives predictable fields that it can inspect and act upon.
+</p>
+
+
+<h2 id="probabilistic-judgment-inside-deterministic-control">
+Probabilistic Judgment Inside Deterministic Control
+</h2>
+
+<p>
+This design illustrates an important architecture for contemporary AI systems:
+</p>
+
+<p>
+<strong>Use probabilistic models for judgment while preserving deterministic software for control.</strong>
+</p>
+
+<p>
+The LLM may decide:
+</p>
+
+<pre><code>same_person = true
+confidence = 0.97
+</code></pre>
+
+<p>
+but Python still decides what happens next:
+</p>
+
+<pre><code>if item["same_person"] and item["useful_source"]:
+    accepted.append(item)
+</code></pre>
+
+<p>
+The model therefore contributes intelligence without receiving unrestricted control of the system.
+</p>
+
+<div class="table-wrap">
+
+<table>
+
+<caption>Table 2.2 Division of Responsibility in Phase II</caption>
+
+<thead>
+
+<tr>
+<th>Component</th>
+<th>Responsibility</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+<td>Web search</td>
+<td>Retrieve candidate information.</td>
+</tr>
+
+<tr>
+<td>Language model</td>
+<td>Interpret context and make semantic judgments.</td>
+</tr>
+
+<tr>
+<td>Structured schema</td>
+<td>Constrain the form of the model's response.</td>
+</tr>
+
+<tr>
+<td>Python</td>
+<td>Validate, filter, and control downstream actions.</td>
+</tr>
+
+<tr>
+<td>Markdown</td>
+<td>Store accepted research information.</td>
+</tr>
+
+<tr>
+<td>Git</td>
+<td>Record changes and preserve an audit trail.</td>
+</tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+
+<h2 id="the-role-of-the-api">
+The Role of the API
+</h2>
+
+<p>
+The language model does not run directly inside the Python script. The script communicates with a model service through an <strong>application programming interface</strong>, or API.
+</p>
+
+<p>
+Conceptually:
+</p>
+
+<pre><code>Python program
+      ↓
+API request
+      ↓
+Gemini model
+      ↓
+API response
+      ↓
+Python program
+</code></pre>
+
+<p>
+The API separates the application from the model provider. The research system sends information in a defined format and receives a response.
+</p>
+
+<p>
+This distinction is important because the overall architecture does not inherently depend on Gemini. Another compatible language-model provider could eventually replace it.
+</p>
+
+<p>
+The model provider is therefore a service component inside a larger information system.
+</p>
+
+
+<h2 id="protecting-api-credentials">
+Protecting API Credentials
+</h2>
+
+<p>
+Using an external model service introduces a new security concern: API credentials.
+</p>
+
+<p>
+An API key should not be written directly into source code:
+</p>
+
+<pre><code>GEMINI_API_KEY = "my-secret-key"
+</code></pre>
+
+<p>
+If committed to a public GitHub repository, that credential could become visible to other users.
+</p>
+
+<p>
+Instead, GitHub Actions can store the credential as a repository secret:
+</p>
+
+<pre><code>GEMINI_API_KEY
+</code></pre>
+
+<p>
+The workflow makes the secret available to the program at runtime without storing its value inside the repository.
+</p>
+
+<p>
+This introduces another important systems concept: <strong>separate configuration and credentials from application code</strong>.
+</p>
+
+
+<h2 id="agentic-research">
+Why Call This Agentic Research?
+</h2>
+
+<p>
+The Phase II system differs from the Phase I automation because not every decision is explicitly encoded in Python.
+</p>
+
+<p>
+The system is given a research objective and contextual information. A language model then exercises bounded judgment concerning the evidence it receives.
+</p>
+
+<p>
+This is why Phase II can reasonably be described as <strong>agentic research</strong>.
+</p>
+
+<p>
+However, the system is still deliberately constrained.
+</p>
+
+<p>
+It does not independently choose from many tools. It does not repeatedly plan new actions. It does not decide to search again when evidence is insufficient. It does not maintain sophisticated memory across runs. It does not freely modify arbitrary repository files.
+</p>
+
+<p>
+Instead:
+</p>
+
+<pre><code>Python controls the workflow.
+LLM supplies judgment.
+Python controls the action.
+</code></pre>
+
+<p>
+This makes Phase II an intermediate step between conventional automation and a more complete agent harness.
+</p>
+
+
+<h2 id="improving-the-research-task">
+Moving Beyond Identity Disambiguation
+</h2>
+
+<p>
+Identity classification is only the first semantic task.
+</p>
+
+<p>
+Once the system can reliably distinguish the intended Charles H. Bennett from unrelated individuals, the same judgment layer can be expanded.
+</p>
+
+<p>
+For example, the language model could classify each accepted result into categories:
+</p>
+
+<pre><code>INTERVIEW
+PODCAST
+TALK
+PROFILE
+AWARD_OR_NEWS
+REFERENCE
+OTHER
+</code></pre>
+
+<p>
+A future version could then maintain separate sections in the research file:
+</p>
+
+<pre><code>Latest Interviews and Podcasts
+
+Supporting Profiles
+
+Awards and News
+
+Reference Sources
+</code></pre>
+
+<p>
+The model could also evaluate publication dates, detect duplicate sources, extract themes, or create concise summaries.
+</p>
+
+<p>
+Each additional capability increases the system's ability to operate on meaning rather than simple textual patterns.
+</p>
+
+
+<h2 id="automation-versus-agentic-research">
+Automation Versus Agentic Research
+</h2>
+
+<div class="table-wrap">
+
+<table>
+
+<caption>Table 2.3 Phase I and Phase II Compared</caption>
+
+<thead>
+
+<tr>
+<th>Dimension</th>
+<th>Phase I: Automation</th>
+<th>Phase II: Agentic Research</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+<td>Primary challenge</td>
+<td>Repetition</td>
+<td>Ambiguity</td>
+</tr>
+
+<tr>
+<td>Decision mechanism</td>
+<td>Explicit rules</td>
+<td>LLM semantic judgment</td>
+</tr>
+
+<tr>
+<td>Example</td>
+<td>Count occurrences of keywords</td>
+<td>Determine whether the source describes the intended person</td>
+</tr>
+
+<tr>
+<td>Output</td>
+<td>Rule-selected results</td>
+<td>Structured AI evaluation</td>
+</tr>
+
+<tr>
+<td>Control</td>
+<td>Python</td>
+<td>Python</td>
+</tr>
+
+<tr>
+<td>Judgment</td>
+<td>Encoded by programmer</td>
+<td>Delegated within defined boundaries to the model</td>
+</tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+
+<h2 id="what-phase-ii-does-not-solve">
+What Phase II Does Not Solve
+</h2>
+
+<p>
+Adding a language model improves semantic interpretation, but it also introduces new problems.
+</p>
+
+<p>
+The model may classify a source incorrectly. Confidence scores are not guarantees. Search results may contain incomplete information. The model may receive insufficient context. An API call may fail. A model provider may become temporarily unavailable. Different models may produce different judgments.
+</p>
+
+<p>
+More importantly, as the model is given more freedom to choose actions, the surrounding system must become more sophisticated.
+</p>
+
+<p>
+Questions begin to appear:
+</p>
+
+<ul>
+
+<li>Which tools may the model use?</li>
+
+<li>What files may it modify?</li>
+
+<li>How many times may it search?</li>
+
+<li>When should it stop?</li>
+
+<li>What happens when a tool fails?</li>
+
+<li>How should state be preserved between actions?</li>
+
+<li>Which actions require human approval?</li>
+
+<li>How can the agent's actions be evaluated?</li>
+
+</ul>
+
+<p>
+These are not primarily questions about the intelligence of the model.
+</p>
+
+<p>
+They are questions about the environment surrounding the model.
+</p>
+
+<p>
+That environment is the focus of Phase III.
+</p>
+
+
+<h2 id="from-agentic-research-to-agent-harness">
+From Agentic Research to an Agent Harness
+</h2>
+
+<p>
+The progression now looks like this:
+</p>
+
+<pre><code>PHASE I
+Automation
+
+"We know the procedure.
+Execute it repeatedly."
+
+        ↓
+
+PHASE II
+Agentic Research
+
+"We know the goal.
+Use bounded semantic judgment."
+
+        ↓
+
+PHASE III
+Agent Harness
+
+"Create an environment in which an agent can
+use tools, maintain state, act repeatedly,
+recover from errors, and remain under control."
+</code></pre>
+
+<p>
+Phase I moved work from humans to software.
+</p>
+
+<p>
+Phase II moved selected judgments from explicit rules to a language model.
+</p>
+
+<p>
+Phase III will focus on how increasingly autonomous behavior can be organized, constrained, observed, and governed.
+</p>
+
+
+<h2 id="key-terms-and-definitions">
+Key Terms and Definitions
+</h2>
+
+<dl class="definition-list">
+
+
+<dt><strong>Agentic Research</strong></dt>
+
+<dd>
+A research process in which an AI model is given a research objective and exercises bounded judgment when evaluating, selecting, or interpreting information.
+</dd>
+
+
+<dt><strong>Large Language Model (LLM)</strong></dt>
+
+<dd>
+A machine-learning model trained on large collections of language data that can generate and interpret text and perform a range of language-based reasoning tasks.
+</dd>
+
+
+<dt><strong>Semantic Judgment</strong></dt>
+
+<dd>
+Evaluation based on contextual meaning rather than only literal strings or predefined patterns.
+</dd>
+
+
+<dt><strong>Identity Disambiguation</strong></dt>
+
+<dd>
+The process of determining which real-world entity a name or reference corresponds to when multiple entities may share similar identifiers.
+</dd>
+
+
+<dt><strong>Structured Output</strong></dt>
+
+<dd>
+A model response constrained to a predefined data structure so that software can reliably interpret individual fields.
+</dd>
+
+
+<dt><strong>Schema</strong></dt>
+
+<dd>
+A formal description of the structure, fields, and expected data types of an information object.
+</dd>
+
+
+<dt><strong>API</strong></dt>
+
+<dd>
+An application programming interface that defines how one software system can request services or data from another system.
+</dd>
+
+
+<dt><strong>API Key</strong></dt>
+
+<dd>
+A credential used by an application to authenticate itself when calling an external service.
+</dd>
+
+
+<dt><strong>Secret</strong></dt>
+
+<dd>
+Sensitive configuration information, such as an API key, that should be stored separately from application source code.
+</dd>
+
+
+<dt><strong>Probabilistic System</strong></dt>
+
+<dd>
+A system whose outputs may vary and are expressed in terms of likelihood rather than being completely determined by fixed rules.
+</dd>
+
+
+<dt><strong>Deterministic Control</strong></dt>
+
+<dd>
+The use of explicit program logic to constrain how probabilistic AI outputs are converted into system actions.
+</dd>
+
+
+<dt><strong>Confidence Score</strong></dt>
+
+<dd>
+A numerical representation of how strongly a model or system supports a particular classification or judgment. A high confidence score does not guarantee correctness.
+</dd>
+
+
+</dl>
+
+
+<nav class="chapter-nav" aria-label="Chapter navigation">
+
+<a href="1-automation.html">Previous</a>
+
+<a href="3-agent-harness.html">Next</a>
+
+</nav>
+
+
+</main>
+
+</body>
+
+</html>
