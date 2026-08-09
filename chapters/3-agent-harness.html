@@ -1,1 +1,1142 @@
+<!doctype html>
 
+<html lang="en">
+
+<head>
+
+<meta charset="utf-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Lab 3: Building an Agent Harness</title>
+
+<link rel="stylesheet" href="../css/book.css">
+
+</head>
+
+<body>
+
+<main class="book-shell">
+
+<div class="book-meta">
+<strong>MGT 2210 Supplemental Labs: Information Systems and Digital Transformation</strong><br>
+Lab 3: Agent Harness
+</div>
+
+
+<h1 id="lab-3-building-an-agent-harness">
+Lab 3: Building an Agent Harness
+</h1>
+
+<h3 id="from-semantic-judgment-to-controlled-agency">
+From Semantic Judgment to Controlled Agency
+</h3>
+
+
+<p>
+In Lab 1, we automated a research procedure. Python determined what steps should occur, and the system repeated those steps across multiple research subjects.
+</p>
+
+<p>
+In Lab 2, we introduced a large language model as a semantic judgment layer. The system could distinguish the intended Charles H. Bennett from unrelated individuals with the same or similar name. However, the overall workflow remained largely predetermined: search once, evaluate candidates, validate the model output, and update the research file.
+</p>
+
+<p>
+Lab 3 introduces a different capability.
+</p>
+
+<p>
+Instead of being given a fixed sequence of actions, the AI system receives a research goal, a limited set of tools, a representation of its current state, and rules that constrain what it is permitted to do. The model may then decide which action to take next based on what it has already observed.
+</p>
+
+<p>
+The result is a small but meaningful example of an <strong>agent harness</strong>.
+</p>
+
+
+<figure class="book-figure" id="figure-lab-3a">
+
+<p class="figure-title">
+Figure 3.1 A Bounded Agent Harness
+</p>
+
+<img
+src="../figures/figure-lab-3a.png"
+alt="Agent harness architecture showing a research goal flowing into an agent that selects among web search, file reading, and proposal writing tools. Tool observations update persistent state, which is returned to the agent for another decision. Python validates tool use and enforces stopping conditions."
+>
+
+<p class="source">Source: Author-created.</p>
+
+<details class="long-description">
+
+<summary>
+<span class="show-label">Show long description</span>
+<span class="hide-label">Hide long description</span>
+</summary>
+
+<div class="long-description-panel">
+
+<strong>Long description</strong>
+
+<p>
+The figure shows the Phase III agent harness. A research goal and current state are provided to a language model acting as the agent. The agent may choose one permitted action, such as searching the web, reading an approved person file, or writing a proposed update. Before execution, deterministic Python code validates that the requested action and arguments are permitted. The selected tool executes and returns an observation. The observation is recorded in persistent state and supplied to the agent during the next iteration. The process continues until the goal is satisfied or a maximum action limit is reached. The agent may create a proposed update, but it cannot directly modify the canonical research file.
+</p>
+
+</div>
+
+</details>
+
+</figure>
+
+
+<h2 id="from-a-fixed-pipeline-to-an-agent-loop">
+From a Fixed Pipeline to an Agent Loop
+</h2>
+
+<p>
+The Phase II research process can be represented as a relatively fixed pipeline:
+</p>
+
+<pre><code>Search
+   ↓
+LLM evaluation
+   ↓
+Python validation
+   ↓
+Write result
+</code></pre>
+
+<p>
+The language model exercises judgment, but it does not decide what should happen next. Python determines the sequence in advance.
+</p>
+
+<p>
+Phase III replaces the fixed sequence with a loop:
+</p>
+
+<pre><code>Goal
+   ↓
+Inspect current state
+   ↓
+Choose next action
+   ↓
+Validate action
+   ↓
+Execute tool
+   ↓
+Observe result
+   ↓
+Update state
+   ↓
+Choose next action
+   ↓
+...
+</code></pre>
+
+<p>
+The number and type of actions are therefore not completely predetermined. The system may search once, determine that the evidence is insufficient, refine the query, search again, compare results, and eventually decide that enough evidence exists to prepare a proposal.
+</p>
+
+<p>
+This iterative relationship between <strong>decision, action, observation, and updated state</strong> is one of the defining features of an agentic system.
+</p>
+
+
+<h2 id="the-infppl3-project">
+The infppl3 Project
+</h2>
+
+<p>
+The Phase III repository separates the agent, its tools, its state, its outputs, and the canonical research content:
+</p>
+
+<pre><code>infppl3/
+│
+├── agent/
+│   ├── agent.py
+│   ├── prompts.py
+│   └── state.py
+│
+├── tools/
+│   ├── web_search.py
+│   ├── file_reader.py
+│   └── file_writer.py
+│
+├── people/
+│   └── 001-charles-h-bennett.md
+│
+├── memory/
+│   └── research_state.json
+│
+├── outputs/
+│   └── proposed_update.md
+│
+└── .github/
+    └── workflows/
+        └── run-agent.yml
+</code></pre>
+
+<p>
+This structure reflects the architecture itself. The model is only one component. The surrounding files define what it can do, what it remembers, where it can write, and how its activity is executed.
+</p>
+
+<div class="table-wrap">
+
+<table>
+
+<caption>Table 3.1 Components of the Agent Harness</caption>
+
+<thead>
+
+<tr>
+<th>Component</th>
+<th>Primary Responsibility</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+<td><strong>agent.py</strong></td>
+<td>Runs the iterative decision loop and coordinates model calls, validation, tools, and state.</td>
+</tr>
+
+<tr>
+<td><strong>prompts.py</strong></td>
+<td>Defines the research goal, operating instructions, available tools, and behavioral constraints.</td>
+</tr>
+
+<tr>
+<td><strong>state.py</strong></td>
+<td>Loads, updates, and persists the current task state.</td>
+</tr>
+
+<tr>
+<td><strong>tools/</strong></td>
+<td>Defines the actions that the agent is permitted to request.</td>
+</tr>
+
+<tr>
+<td><strong>memory/research_state.json</strong></td>
+<td>Stores task progress across decisions.</td>
+</tr>
+
+<tr>
+<td><strong>outputs/proposed_update.md</strong></td>
+<td>Stores the agent's proposed result for human review.</td>
+</tr>
+
+<tr>
+<td><strong>GitHub Actions</strong></td>
+<td>Executes the harness in a controlled cloud environment.</td>
+</tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+
+<h2 id="a-goal-rather-than-a-procedure">
+A Goal Rather Than a Procedure
+</h2>
+
+<p>
+The Phase III task begins with a goal:
+</p>
+
+<pre><code>Find one recent substantive interview, podcast,
+or talk featuring the intended Charles H. Bennett.
+</code></pre>
+
+<p>
+Notice what is missing.
+</p>
+
+<p>
+The system is not told:
+</p>
+
+<pre><code>Search query A.
+Then search query B.
+Then select result 3.
+Then write the output.
+</code></pre>
+
+<p>
+Instead, the agent must determine which permitted action is most appropriate given the current state of the task.
+</p>
+
+<p>
+This changes the role of the language model. In Phase II, the model evaluated information supplied to it. In Phase III, the model also participates in deciding what information should be gathered next.
+</p>
+
+
+<h2 id="tools-as-bounded-capabilities">
+Tools as Bounded Capabilities
+</h2>
+
+<p>
+An agent does not need unrestricted access to the operating system. In fact, unrestricted access would make the system more difficult to reason about and govern.
+</p>
+
+<p>
+The Phase III agent receives only three tools:
+</p>
+
+<pre><code>search_web(query)
+
+read_person_file(filename)
+
+write_proposal(content)
+</code></pre>
+
+<p>
+Each tool represents a specific capability.
+</p>
+
+<p>
+The web-search tool can retrieve public information. The file-reading tool can read an approved profile in the <code>people/</code> directory. The writing tool can create a proposal in the <code>outputs/</code> directory.
+</p>
+
+<p>
+The agent is not provided tools for deleting files, reading secrets, changing workflow files, executing shell commands, or modifying arbitrary repository content.
+</p>
+
+<p>
+This illustrates a fundamental harness principle:
+</p>
+
+<p>
+<strong>An agent should receive only the capabilities required to accomplish its task.</strong>
+</p>
+
+
+<aside class="box example-box" aria-labelledby="tool-boundary-example">
+
+<h2 class="box-title" id="tool-boundary-example">Example</h2>
+
+<div class="box-body">
+
+<p>
+Suppose the model attempted to request an action named:
+</p>
+
+<pre><code>{
+  "action": "delete_repository"
+}
+</code></pre>
+
+<p>
+The harness defines an explicit set of permitted actions:
+</p>
+
+<pre><code>ALLOWED_ACTIONS = {
+    "read_person_file",
+    "search_web",
+    "write_proposal"
+}
+</code></pre>
+
+<p>
+Because <code>delete_repository</code> does not appear in the allowed set, Python rejects the request before any tool is executed.
+</p>
+
+<p>
+The language model may propose an action, but the harness determines whether the action is authorized.
+</p>
+
+</div>
+
+</aside>
+
+
+<h2 id="intention-is-not-authority">
+Agent Intention Is Not Agent Authority
+</h2>
+
+<p>
+This distinction can be summarized as:
+</p>
+
+<p>
+<strong>Agent intention is not the same as agent authority.</strong>
+</p>
+
+<p>
+The model may want to perform an action, but the model does not define its own permissions.
+</p>
+
+<p>
+Authority is defined externally by the harness.
+</p>
+
+<p>
+For example, the writing tool is deliberately implemented so that it can write only:
+</p>
+
+<pre><code>outputs/proposed_update.md
+</code></pre>
+
+<p>
+It cannot modify:
+</p>
+
+<pre><code>people/001-charles-h-bennett.md
+</code></pre>
+
+<p>
+The canonical research file therefore remains outside the agent's direct write authority.
+</p>
+
+<p>
+This design introduces a human-review boundary between an AI-generated proposal and an authoritative content update.
+</p>
+
+
+<h2 id="state-and-memory">
+State and Memory
+</h2>
+
+<p>
+An iterative agent must know what has already happened.
+</p>
+
+<p>
+The Phase III harness stores task state in:
+</p>
+
+<pre><code>memory/research_state.json
+</code></pre>
+
+<p>
+A simplified state object may contain:
+</p>
+
+<pre><code>{
+  "goal": "Find one recent verified interview...",
+  "step": 3,
+  "max_steps": 5,
+  "status": "researching",
+  "searches": [
+    "Charles H. Bennett physicist interview",
+    "\"Charles H. Bennett\" IBM interview"
+  ],
+  "sources_seen": [
+    "https://...",
+    "https://..."
+  ],
+  "best_candidate": {
+    "title": "...",
+    "url": "...",
+    "confidence": 0.94
+  },
+  "notes": [
+    "Initial search returned mostly award pages.",
+    "A more targeted query produced an interview candidate."
+  ]
+}
+</code></pre>
+
+<p>
+This information provides working memory for the task.
+</p>
+
+<p>
+Without state, every model call would behave like an isolated conversation. The agent might repeat the same query, forget previously observed sources, or fail to recognize that a promising candidate had already been identified.
+</p>
+
+
+<h2 id="state-as-part-of-the-information-system">
+State as Part of the Information System
+</h2>
+
+<p>
+The state file is not merely a debugging artifact. It is part of the information system.
+</p>
+
+<p>
+It records:
+</p>
+
+<ul>
+
+<li>the goal being pursued;</li>
+
+<li>how many actions have been used;</li>
+
+<li>which search queries have already been attempted;</li>
+
+<li>which sources have already been observed;</li>
+
+<li>the strongest candidate identified so far;</li>
+
+<li>notes accumulated during the research process; and</li>
+
+<li>whether the task is still active, completed, or failed.</li>
+
+</ul>
+
+<p>
+The next model decision is therefore informed by prior activity.
+</p>
+
+<p>
+This creates a feedback loop:
+</p>
+
+<pre><code>Action
+   ↓
+Observation
+   ↓
+State update
+   ↓
+Next decision
+</code></pre>
+
+
+<h2 id="the-agent-decision-schema">
+The Agent Decision Schema
+</h2>
+
+<p>
+The model does not return unrestricted prose describing what it would like to do.
+</p>
+
+<p>
+Instead, it returns a structured action object.
+</p>
+
+<p>
+A search decision might resemble:
+</p>
+
+<pre><code>{
+  "action": "search_web",
+  "reason": "The current results do not contain a clear interview.",
+  "arguments": {
+    "query": "\"Charles H. Bennett\" IBM interview"
+  },
+  "best_candidate": null,
+  "note": "Narrowing the search around IBM may reduce ambiguity."
+}
+</code></pre>
+
+<p>
+A later decision might propose:
+</p>
+
+<pre><code>{
+  "action": "write_proposal",
+  "reason": "A sufficiently strong verified interview has been found.",
+  "arguments": {
+    "content": "# Proposed Research Update ..."
+  },
+  "best_candidate": {
+    "title": "...",
+    "url": "...",
+    "confidence": 0.95,
+    "reason": "..."
+  },
+  "note": "Ready for human review."
+}
+</code></pre>
+
+<p>
+Structured actions make the agent easier to validate and execute programmatically.
+</p>
+
+<p>
+The model decides <em>what it wants to do</em>. The harness determines <em>whether that request is permitted and how it is executed</em>.
+</p>
+
+
+<h2 id="validation-before-execution">
+Validation Before Execution
+</h2>
+
+<p>
+Every proposed action passes through deterministic validation before a tool is called.
+</p>
+
+<p>
+The harness checks questions such as:
+</p>
+
+<ul>
+
+<li>Is the requested tool permitted?</li>
+
+<li>Does the tool have the required arguments?</li>
+
+<li>Is the requested file the authorized person file?</li>
+
+<li>Has the proposed search query already been used?</li>
+
+<li>Does a proposal exist only after a best candidate has been identified?</li>
+
+</ul>
+
+<p>
+For example:
+</p>
+
+<pre><code>if action not in ALLOWED_ACTIONS:
+    raise RuntimeError(
+        f"Agent requested forbidden action: {action}"
+    )
+</code></pre>
+
+<p>
+This introduces a deterministic control layer around probabilistic model behavior.
+</p>
+
+<p>
+The same architectural principle appeared in Phase II, but Phase III makes it even more important because the model is now choosing among actions rather than merely classifying information.
+</p>
+
+
+<h2 id="iterative-research">
+Iterative Research
+</h2>
+
+<p>
+The successful Charles H. Bennett run illustrates how the agent adapts its strategy.
+</p>
+
+<p>
+Rather than relying on one fixed search, the agent used multiple queries and refined its strategy as new evidence appeared.
+</p>
+
+<p>
+The process can be summarized as:
+</p>
+
+<pre><code>Broad search
+      ↓
+Observe mostly profiles and award material
+      ↓
+Refine search around interview context
+      ↓
+Identify a stronger candidate
+      ↓
+Search more specifically for the candidate
+      ↓
+Confirm a direct interview source
+      ↓
+Prepare proposal
+      ↓
+Stop
+</code></pre>
+
+<p>
+The importance of this process is not merely that several searches occurred.
+</p>
+
+<p>
+The later searches were influenced by the earlier observations.
+</p>
+
+<p>
+The system therefore demonstrates adaptive behavior rather than simple repetition.
+</p>
+
+
+<aside class="box example-box" aria-labelledby="charles-agent-example">
+
+<h2 class="box-title" id="charles-agent-example">Example</h2>
+
+<div class="box-body">
+
+<p>
+The Phase III agent ultimately selected the source titled <em>What led you to that insight? An Interview with Charles H. Bennett and Gilles Brassard</em>.
+</p>
+
+<p>
+The agent connected the interview to the intended Charles H. Bennett through contextual evidence involving quantum information, Gilles Brassard, IBM, BB84, and the Turing Award. It assigned a high confidence score and produced the result as a proposal rather than directly modifying the canonical person profile.
+</p>
+
+<p>
+The important outcome is therefore not only that the source was relevant. The agent reached the result through a sequence of bounded decisions recorded in state.
+</p>
+
+</div>
+
+</aside>
+
+
+<h2 id="stopping-conditions">
+Stopping Conditions
+</h2>
+
+<p>
+An iterative system needs a rule for when iteration should stop.
+</p>
+
+<p>
+The Phase III harness uses a maximum number of actions:
+</p>
+
+<pre><code>"max_steps": 5
+</code></pre>
+
+<p>
+The state-management code checks whether the agent may continue:
+</p>
+
+<pre><code>return (
+    step &lt; max_steps
+    and state.get("status") not in {
+        "completed",
+        "failed"
+    }
+)
+</code></pre>
+
+<p>
+This means the model cannot continue searching indefinitely.
+</p>
+
+<p>
+The agent stops when either:
+</p>
+
+<ul>
+
+<li>the task is completed; or</li>
+
+<li>the maximum action limit is reached.</li>
+
+</ul>
+
+<p>
+A stopping condition is a critical harness feature because autonomous loops without limits can consume excessive time, API usage, or computational resources.
+</p>
+
+
+<h2 id="human-in-the-loop-control">
+Human-in-the-Loop Control
+</h2>
+
+<p>
+The Phase III agent does not directly update the authoritative research record.
+</p>
+
+<p>
+Instead, it writes:
+</p>
+
+<pre><code>outputs/proposed_update.md
+</code></pre>
+
+<p>
+The proposed update contains the selected source, URL, rationale, confidence level, and a note indicating that the result requires human review.
+</p>
+
+<p>
+The workflow therefore becomes:
+</p>
+
+<pre><code>Agent research
+      ↓
+Proposed update
+      ↓
+Human review
+      ↓
+Accept, revise, or reject
+      ↓
+Canonical content
+</code></pre>
+
+<p>
+This is an example of <strong>human-in-the-loop</strong> system design.
+</p>
+
+<p>
+The human is not required to perform every research step manually, but remains responsible for approving the final authoritative change.
+</p>
+
+
+<h2 id="why-the-harness-matters">
+Why the Harness Matters
+</h2>
+
+<p>
+A language model alone is not an agent harness.
+</p>
+
+<p>
+The harness is the surrounding infrastructure that makes agent behavior usable in a larger information system.
+</p>
+
+<p>
+It provides:
+</p>
+
+<ul>
+
+<li>goals and instructions;</li>
+
+<li>tool definitions;</li>
+
+<li>tool permissions;</li>
+
+<li>structured action schemas;</li>
+
+<li>validation;</li>
+
+<li>persistent state;</li>
+
+<li>iteration;</li>
+
+<li>stopping conditions;</li>
+
+<li>restricted write authority;</li>
+
+<li>auditability; and</li>
+
+<li>human approval.</li>
+
+</ul>
+
+<p>
+These elements transform a model call into a controlled operational process.
+</p>
+
+
+<h2 id="model-capability-versus-system-capability">
+Model Capability Versus System Capability
+</h2>
+
+<p>
+One of the most important lessons of Phase III is that the capability of an AI application depends on more than the intelligence of the underlying model.
+</p>
+
+<p>
+Consider two systems using the same language model.
+</p>
+
+<p>
+The first system receives a prompt and produces text.
+</p>
+
+<p>
+The second system can search, read approved files, maintain task state, revise its strategy, validate proposed actions, write a controlled output, and stop under predefined conditions.
+</p>
+
+<p>
+Although both systems use the same model, their operational capabilities are very different.
+</p>
+
+<p>
+This suggests a broader systems principle:
+</p>
+
+<p>
+<strong>Model capability and system capability are not the same thing.</strong>
+</p>
+
+<p>
+The harness determines how model intelligence is converted into usable, bounded organizational action.
+</p>
+
+
+<h2 id="three-phases-compared">
+Three Phases Compared
+</h2>
+
+<div class="table-wrap">
+
+<table>
+
+<caption>Table 3.2 Automation, Agentic Research, and Agent Harnesses</caption>
+
+<thead>
+
+<tr>
+<th>Dimension</th>
+<th>Phase I</th>
+<th>Phase II</th>
+<th>Phase III</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+<td>Primary challenge</td>
+<td>Repetition</td>
+<td>Ambiguity</td>
+<td>Controlled autonomy</td>
+</tr>
+
+<tr>
+<td>Main logic</td>
+<td>Explicit rules</td>
+<td>LLM semantic judgment</td>
+<td>LLM decision loop + deterministic harness</td>
+</tr>
+
+<tr>
+<td>Workflow</td>
+<td>Predetermined</td>
+<td>Mostly predetermined</td>
+<td>Adaptive within constraints</td>
+</tr>
+
+<tr>
+<td>Tool choice</td>
+<td>Defined by Python</td>
+<td>Defined by Python</td>
+<td>Selected by agent from an allowed set</td>
+</tr>
+
+<tr>
+<td>Memory</td>
+<td>Minimal</td>
+<td>Limited to current request</td>
+<td>Persistent task state</td>
+</tr>
+
+<tr>
+<td>Stopping condition</td>
+<td>End of script</td>
+<td>End of evaluation</td>
+<td>Goal completion or action limit</td>
+</tr>
+
+<tr>
+<td>Write authority</td>
+<td>Program writes directly</td>
+<td>Program writes validated output</td>
+<td>Agent may only create a proposal</td>
+</tr>
+
+<tr>
+<td>Human role</td>
+<td>Design procedure</td>
+<td>Define context and constraints</td>
+<td>Govern permissions and review outputs</td>
+</tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+
+<h2 id="automation-agentic-research-and-harnessing">
+Automation, Agentic Research, and Harnessing
+</h2>
+
+<p>
+The three labs can now be understood as a progression in how decision authority is distributed.
+</p>
+
+<pre><code>PHASE I — AUTOMATION
+
+Human defines procedure.
+Software executes procedure.
+
+        ↓
+
+PHASE II — AGENTIC RESEARCH
+
+Human defines goal and context.
+LLM supplies semantic judgment.
+Software controls the action.
+
+        ↓
+
+PHASE III — AGENT HARNESS
+
+Human defines goal, tools, permissions,
+state boundaries, and stopping rules.
+
+Agent chooses among permitted actions.
+
+Harness validates and executes those actions.
+
+Human retains final authority.
+</code></pre>
+
+<p>
+The transition is therefore not simply from less AI to more AI.
+</p>
+
+<p>
+It is a transition from fixed procedure, to delegated judgment, to bounded agency.
+</p>
+
+
+<h2 id="governance-and-control">
+Governance and Control
+</h2>
+
+<p>
+As software becomes more agentic, system design increasingly becomes a governance problem.
+</p>
+
+<p>
+Questions that were relatively unimportant in Phase I become central:
+</p>
+
+<ul>
+
+<li>Which tools should an agent be permitted to use?</li>
+
+<li>Which data should it be allowed to read?</li>
+
+<li>Which files should it be allowed to modify?</li>
+
+<li>How much money or API usage may it consume?</li>
+
+<li>How many actions may it take?</li>
+
+<li>What evidence is required before an action is accepted?</li>
+
+<li>Which decisions require human approval?</li>
+
+<li>How should failures and unexpected actions be recorded?</li>
+
+</ul>
+
+<p>
+These questions are not solved by choosing a more powerful model.
+</p>
+
+<p>
+They are solved through system architecture, controls, permissions, monitoring, and organizational policy.
+</p>
+
+<p>
+Agent harness design is therefore an information-systems problem as much as an artificial-intelligence problem.
+</p>
+
+
+<h2 id="key-terms-and-definitions">
+Key Terms and Definitions
+</h2>
+
+<dl class="definition-list">
+
+
+<dt><strong>Agent</strong></dt>
+
+<dd>
+A software component that receives a goal, evaluates its current context, and selects actions intended to advance that goal.
+</dd>
+
+
+<dt><strong>Agent Harness</strong></dt>
+
+<dd>
+The surrounding system that provides an agent with tools, instructions, permissions, state, validation, stopping conditions, and other controls required for reliable operation.
+</dd>
+
+
+<dt><strong>Tool</strong></dt>
+
+<dd>
+A bounded capability exposed to an agent, such as searching the web, reading an approved file, or writing a controlled output.
+</dd>
+
+
+<dt><strong>Tool Permission</strong></dt>
+
+<dd>
+A restriction defining which capabilities an agent is authorized to use and under what conditions.
+</dd>
+
+
+<dt><strong>Agent Loop</strong></dt>
+
+<dd>
+An iterative sequence in which an agent decides an action, observes the result, updates its understanding or state, and decides what to do next.
+</dd>
+
+
+<dt><strong>Observation</strong></dt>
+
+<dd>
+Information returned to an agent after a tool executes.
+</dd>
+
+
+<dt><strong>State</strong></dt>
+
+<dd>
+A structured representation of information about an ongoing task, including progress, prior actions, observations, and current status.
+</dd>
+
+
+<dt><strong>Persistent State</strong></dt>
+
+<dd>
+Task information stored outside the immediate model request so that it can be reused across multiple decisions or executions.
+</dd>
+
+
+<dt><strong>Stopping Condition</strong></dt>
+
+<dd>
+A predefined rule that determines when an iterative agent process must terminate.
+</dd>
+
+
+<dt><strong>Human-in-the-Loop</strong></dt>
+
+<dd>
+A system design in which human review or approval remains part of the decision process for selected actions or outputs.
+</dd>
+
+
+<dt><strong>Least Privilege</strong></dt>
+
+<dd>
+A design principle in which a user, program, or agent receives only the permissions necessary to perform its assigned task.
+</dd>
+
+
+<dt><strong>Structured Action</strong></dt>
+
+<dd>
+A model-generated request represented in a predefined schema that specifies an intended tool, arguments, and supporting rationale.
+</dd>
+
+
+<dt><strong>Validation Layer</strong></dt>
+
+<dd>
+Deterministic logic that checks whether a proposed action satisfies system rules before the action is executed.
+</dd>
+
+
+<dt><strong>Controlled Agency</strong></dt>
+
+<dd>
+The ability of an AI system to select actions dynamically while remaining constrained by externally defined permissions, tools, limits, and review mechanisms.
+</dd>
+
+
+</dl>
+
+
+<nav class="chapter-nav" aria-label="Chapter navigation">
+
+<a href="2-agentic-research.html">Previous</a>
+
+<a href="../index.html">Home</a>
+
+</nav>
+
+
+</main>
+
+</body>
+
+</html>
