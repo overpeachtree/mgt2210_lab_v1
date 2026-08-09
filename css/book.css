@@ -1,1 +1,434 @@
+/* =========================================================
+   MGT 2210 Supplemental Labs
+   Shared textbook stylesheet
+   ========================================================= */
 
+:root {
+  --ink: #222222;
+  --muted: #666666;
+  --page: #ffffff;
+  --soft-gray: #f6f6f6;
+  --rule: #d9d9d9;
+
+  --book-blue: #24547a;
+  --link-blue: #245f9e;
+
+  --example-gold: #9a6a22;
+  --example-bg: #fbf7ef;
+
+  --code-bg: #f5f7f9;
+  --table-head: #eef3f7;
+}
+
+/* =========================================================
+   Base
+   ========================================================= */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 18px;
+}
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: Georgia, "Times New Roman", serif;
+  line-height: 1.68;
+}
+
+/* =========================================================
+   Main page shell
+   ========================================================= */
+
+.book-shell {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 34px 32px 72px;
+}
+
+/* =========================================================
+   Metadata
+   ========================================================= */
+
+.book-meta {
+  margin-bottom: 2.2rem;
+  color: var(--muted);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.book-meta strong {
+  display: block;
+  color: #111111;
+}
+
+/* =========================================================
+   Headings
+   ========================================================= */
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 700;
+  line-height: 1.14;
+}
+
+h1 {
+  margin: 0 0 1.55rem;
+  padding-bottom: 1.35rem;
+  border-bottom: 1px solid var(--rule);
+  color: var(--book-blue);
+  font-size: 2.65rem;
+}
+
+h2 {
+  margin: 2.35rem 0 1rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid var(--rule);
+  color: var(--book-blue);
+  font-size: 1.62rem;
+}
+
+h3 {
+  margin: 2rem 0 0.7rem;
+  color: var(--book-blue);
+  font-size: 1.28rem;
+}
+
+h4 {
+  margin: 1.5rem 0 0.5rem;
+  color: #333333;
+  font-size: 1.05rem;
+}
+
+/* =========================================================
+   Text
+   ========================================================= */
+
+p {
+  margin: 1rem 0;
+}
+
+a {
+  color: var(--link-blue);
+}
+
+a:hover,
+a:focus-visible {
+  text-decoration-thickness: 2px;
+}
+
+strong {
+  font-weight: 700;
+}
+
+/* =========================================================
+   Lists
+   ========================================================= */
+
+ol,
+ul {
+  margin: 0.6rem 0 1rem 1.45rem;
+  padding: 0;
+}
+
+li {
+  margin: 0.55rem 0;
+  padding-left: 0.3rem;
+}
+
+/* =========================================================
+   Code
+   ========================================================= */
+
+code,
+pre {
+  font-family:
+    "SFMono-Regular",
+    Consolas,
+    "Liberation Mono",
+    Menlo,
+    monospace;
+}
+
+code {
+  font-size: 0.88em;
+}
+
+p code,
+li code,
+td code,
+dd code {
+  background: var(--code-bg);
+  border-radius: 3px;
+  padding: 0.08rem 0.25rem;
+}
+
+pre {
+  margin: 1.25rem 0 1.5rem;
+  padding: 1rem 1.15rem;
+  overflow-x: auto;
+  border: 1px solid #dce2e7;
+  border-radius: 5px;
+  background: var(--code-bg);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+pre code {
+  padding: 0;
+  background: transparent;
+}
+
+/* =========================================================
+   Figures
+   ========================================================= */
+
+.book-figure {
+  margin: 2rem 0;
+}
+
+.figure-title {
+  margin: 0 0 0.7rem;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.book-figure img {
+  display: block;
+  width: 100%;
+  max-width: 840px;
+  height: auto;
+  margin: 0 auto;
+}
+
+.source {
+  margin-top: 0.6rem;
+  color: var(--muted);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.82rem;
+}
+
+/* =========================================================
+   Accessible figure descriptions
+   ========================================================= */
+
+.long-description {
+  margin-top: 0.7rem;
+}
+
+.long-description summary {
+  cursor: pointer;
+  color: var(--link-blue);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.84rem;
+}
+
+.long-description-panel {
+  margin-top: 0.6rem;
+  padding: 0.85rem 1rem;
+  border-left: 3px solid #c8d4df;
+  background: #f8fafb;
+}
+
+.hide-label {
+  display: none;
+}
+
+details[open] .show-label {
+  display: none;
+}
+
+details[open] .hide-label {
+  display: inline;
+}
+
+/* =========================================================
+   Tables
+   ========================================================= */
+
+.table-wrap {
+  margin: 1.5rem 0 2rem;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.9rem;
+}
+
+caption {
+  margin-bottom: 0.6rem;
+  color: #222222;
+  font-weight: 700;
+  text-align: left;
+}
+
+th,
+td {
+  padding: 0.7rem 0.8rem;
+  border: 1px solid #d8dee4;
+  vertical-align: top;
+  text-align: left;
+}
+
+th {
+  background: var(--table-head);
+  font-weight: 700;
+}
+
+tbody tr:nth-child(even) {
+  background: #fafafa;
+}
+
+/* =========================================================
+   Boxes
+   ========================================================= */
+
+.box {
+  margin: 1.5rem 0 2rem;
+  background: var(--soft-gray);
+}
+
+.box-title {
+  margin: 0;
+  padding: 0.58rem 1rem;
+  border-bottom: 0;
+  background: #5f6f78;
+  color: #ffffff;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 1.25rem;
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.box-body {
+  padding: 1rem 1.45rem 1.35rem;
+}
+
+.box-body > :first-child {
+  margin-top: 0;
+}
+
+.box-body > :last-child {
+  margin-bottom: 0;
+}
+
+.example-box {
+  background: var(--example-bg);
+}
+
+.example-box .box-title {
+  background: var(--example-gold);
+}
+
+/* =========================================================
+   Key terms
+   ========================================================= */
+
+.definition-list {
+  margin: 1.2rem 0;
+  border-top: 1px solid var(--rule);
+}
+
+.definition-list dt {
+  margin-top: 1rem;
+  color: #111111;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 700;
+}
+
+.definition-list dd {
+  margin: 0.2rem 0 0.9rem;
+}
+
+/* =========================================================
+   Footnotes / References
+   ========================================================= */
+
+.references {
+  padding-left: 1.4rem;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.86rem;
+}
+
+.references li {
+  margin-bottom: 0.8rem;
+}
+
+/* =========================================================
+   Chapter navigation
+   ========================================================= */
+
+.chapter-nav {
+  display: flex;
+  justify-content: center;
+  gap: 0.65rem;
+  margin: 2.4rem 0 0;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.82rem;
+}
+
+.chapter-nav a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 5.2rem;
+  padding: 0.28rem 0.55rem;
+  border: 1px solid #c9d1dc;
+  border-radius: 4px;
+  color: var(--link-blue);
+  text-decoration: none;
+}
+
+.chapter-nav a:hover,
+.chapter-nav a:focus-visible {
+  background: #f3f7ff;
+  outline: none;
+}
+
+/* =========================================================
+   Responsive layout
+   ========================================================= */
+
+@media (max-width: 680px) {
+
+  html {
+    font-size: 17px;
+  }
+
+  .book-shell {
+    padding: 24px 20px 54px;
+  }
+
+  h1 {
+    font-size: 2rem;
+  }
+
+  h2 {
+    font-size: 1.45rem;
+  }
+
+  h3 {
+    font-size: 1.18rem;
+  }
+
+  th,
+  td {
+    padding: 0.6rem;
+  }
+
+  .box-body {
+    padding: 0.9rem 1rem 1.1rem;
+  }
+}
